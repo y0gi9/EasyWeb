@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  easyweb-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: easyweb-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_PATH=/app/data/easyweb.db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-placeholder-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-placeholder-client-secret}
+      - OAUTH_BASE_URL=${OAUTH_BASE_URL:-http://easyweb-backend:3001}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-placeholder-client-id}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-placeholder-client-secret}
+      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID:-placeholder-client-id}
+      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET:-placeholder-client-secret}
+      - CLOUDFLARE_TUNNEL=${CLOUDFLARE_TUNNEL:-false}
+      - NGINX_CONFIG_PATH=${NGINX_CONFIG_PATH:-/app/nginx/includes/proxy_upstreams.inc}
+      - NGINX_SERVER_CONFIG_PATH=${NGINX_SERVER_CONFIG_PATH:-/app/nginx/includes/proxy_servers.conf}
+      - NGINX_ROOT_CONFIG_PATH=${NGINX_ROOT_CONFIG_PATH:-/app/nginx/includes/proxy_root.inc}
+      - NGINX_CONTAINER_NAME=${NGINX_CONTAINER_NAME:-easyweb-nginx}
+    volumes:
+      - ./data:/app/data
+      - ./ssl:/app/ssl
+      - ./nginx/conf.d:/app/nginx/conf.d
+      - ./nginx/includes:/app/nginx/includes
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - dns-server
+    networks:
+      - easyweb-network
+
+  easyweb-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: easyweb-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=${PUBLIC_API_URL:-http://localhost:3001}
+    depends_on:
+      - easyweb-backend
+    networks:
+      - easyweb-network
+
+  dns-server:
+    build:
+      context: ./dns-server
+      dockerfile: Dockerfile
+    container_name: easyweb-dns
+    ports:
+      - "1053:53/udp"
+      - "1053:53/tcp"
+    environment:
+      - DNS_PORT=53
+      - UPSTREAM_DNS=8.8.8.8,1.1.1.1
+      - BLOCKLIST_UPDATE_INTERVAL=24
+    volumes:
+      - ./data:/app/data
+      - ./data/blocklists:/app/blocklists
+      - ./data/dns-logs:/app/logs
+    networks:
+      - easyweb-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: easyweb-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - easyweb-network
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: easyweb-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - EMAIL=${EMAIL:-admin@localhost}
+    volumes:
+      - ./ssl:/etc/nginx/ssl
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/includes:/etc/nginx/includes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - easyweb-frontend
+      - easyweb-backend
+    networks:
+      - easyweb-network
+
+volumes:
+  redis-data:
+
+networks:
+  easyweb-network:
+    driver: bridge

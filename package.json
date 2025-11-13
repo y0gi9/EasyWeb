@@ -1,0 +1,37 @@
+{
+  "name": "easyweb",
+  "version": "1.0.0",
+  "description": "Unified Network & Security Dashboard - Combining nginx, oauth2-proxy, and pi-hole functionality",
+  "main": "index.js",
+  "scripts": {
+    "dev": "docker-compose down --remove-orphans --volumes && docker-compose up --build",
+    "prod": "docker-compose -f docker-compose.yml up -d --build",
+    "stop": "docker-compose down",
+    "logs": "docker-compose logs -f",
+    "clean": "docker-compose down -v --remove-orphans",
+    "setup": "cp .env.example .env && echo 'Please edit .env file with your configuration'",
+    "backend:dev": "cd backend && npm run dev",
+    "frontend:dev": "cd frontend && npm start",
+    "dns:dev": "cd dns-server && npm run dev",
+    "build": "docker-compose build",
+    "install:all": "npm run install:backend && npm run install:frontend && npm run install:dns",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install", 
+    "install:dns": "cd dns-server && npm install"
+  },
+  "keywords": [
+    "reverse-proxy",
+    "authentication",
+    "dns-filtering",
+    "pi-hole",
+    "nginx",
+    "oauth2",
+    "network-security",
+    "docker"
+  ],
+  "author": "EasyWeb",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
